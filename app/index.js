@@ -222,11 +222,120 @@ app.get("/api/mis-citas", autenticar, (req, res) => {
         [req.user.id],
         (err, results) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json(results);
+            // Normalizar los campos para que el frontend pueda consumirlos de forma consistente
+            const normalized = results.map(r => ({
+                Id_cita: r.Id_cita || r.id_cita || r.id || null,
+                Id_Paciente_Fk: r.Id_Paciente_Fk || r.id_paciente_fk || r.Id_Paciente || req.user.id,
+                Id_Doctor_Fk: r.Id_Doctor_Fk || r.id_doctor_fk || r.Id_Doctor || null,
+                especialidad: r.especialidad || r.Nombre_Esp || null,
+                Tipo_Cita: r.Tipo_Cita || r.tipo_cita || r.tipo || null,
+                Fecha: r.Fecha || r.fecha || null,
+                hora: r.hora || r.Hora || r.hora_cita || null,
+                nombre_completo: r.nombre_completo || r.nombre || `${r.Nombre_Doctor || ''}`,
+                documento_identidad: r.documento_identidad || r.Documento_Identidad || null,
+                Telefono: r.Telefono || r.telefono || null,
+                Correo: r.Correo || r.correo || null,
+                motivo: r.motivo || r.Motivo || null,
+                Nombre_Doctor: r.Nombre_Doctor || null,
+                raw: r
+            }));
+            // Si no hay citas y se solicita modo debug, devolver datos de ejemplo para pruebas UI
+            if ((normalized.length === 0) && (req.query && req.query.debug === '1')) {
+                const today = new Date().toISOString().split('T')[0];
+                const sample = [
+                    {
+                        Id_cita: 999001,
+                        Id_Paciente_Fk: req.user.id,
+                        Id_Doctor_Fk: 1,
+                        especialidad: 'Cardiología',
+                        Tipo_Cita: 'Control',
+                        Fecha: today,
+                        hora: '10:00:00',
+                        nombre_completo: 'Paciente Demo',
+                        documento_identidad: '00000000',
+                        Telefono: '+000000000',
+                        Correo: 'demo@example.com',
+                        motivo: 'Cita de prueba para visualizar calendario',
+                        Nombre_Doctor: 'Dr. Demo'
+                    },
+                    {
+                        Id_cita: 999002,
+                        Id_Paciente_Fk: req.user.id,
+                        Id_Doctor_Fk: 2,
+                        especialidad: 'Pediatría',
+                        Tipo_Cita: 'Primera Vez',
+                        Fecha: today,
+                        hora: '14:30:00',
+                        nombre_completo: 'Paciente Demo 2',
+                        documento_identidad: '11111111',
+                        Telefono: '+000000001',
+                        Correo: 'demo2@example.com',
+                        motivo: 'Segunda cita de prueba',
+                        Nombre_Doctor: 'Dra. Demo'
+                    }
+                ];
+                return res.json(sample);
+            }
+
+            res.json(normalized);
         }
     );
 });
 
+// === CITAS PARA EL CALENDARIO (FullCalendar) ===
+app.get("/api/citas-calendario", autenticar, (req, res) => {
+    connection.query(
+        `SELECT 
+            c.Id_cita,
+            c.Fecha,
+            c.hora,
+            c.Tipo_Cita,
+            c.nombre_completo,
+            d.Nombre_Doctor,
+            e.Nombre_Esp as especialidad
+         FROM cita c 
+         JOIN doctor d ON c.Id_Doctor_Fk = d.id_doctor
+         JOIN especialidad e ON d.Id_Especialidad_Fk = e.Id_Especialidad
+         WHERE c.Id_Paciente_Fk = ?
+         ORDER BY c.Fecha, c.hora`,
+        [req.user.id],
+        (err, results) => {
+            if (err) {
+                console.error("Error en /api/citas-calendario:", err);
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Convertir a formato FullCalendar
+            const eventos = results.map(cita => {
+                const fecha = cita.Fecha; // YYYY-MM-DD
+                const horaInicio = cita.hora; // HH:MM:SS
+
+                // Calcular hora fin: +30 minutos (ajusta si usas otra duración)
+                const [h, m] = horaInicio.split(':');
+                const fechaFin = new Date(fecha);
+                fechaFin.setHours(parseInt(h), parseInt(m) + 30, 0); // +30 min
+
+                const inicio = new Date(`${fecha}T${horaInicio}`);
+                const fin = fechaFin;
+
+                return {
+                    id: cita.Id_cita,
+                    title: `${cita.Tipo_Cita} - ${cita.Nombre_Doctor} (${cita.especialidad})`,
+                    start: inicio.toISOString(), // 2025-11-15T10:00:00
+                    end: fin.toISOString(),
+                    color: cita.Tipo_Cita === 'Primera Vez' ? '#e74c3c' : '#3498db',
+                    extendedProps: {
+                        nombre_completo: cita.nombre_completo,
+                        especialidad: cita.especialidad,
+                        motivo: cita.motivo || 'No especificado'
+                    }
+                };
+            });
+
+            res.json(eventos);
+        }
+    );
+});
 // === ELIMINAR CITA ===
 app.delete("/api/cita/:id", autenticar, (req, res) => {
     const { id } = req.params;

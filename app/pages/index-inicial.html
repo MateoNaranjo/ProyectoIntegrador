@@ -434,27 +434,152 @@
             if (document.getElementById('welcome')?.classList.contains('active')) setTimeout(inicializarCalendario, 400);
 
             // === FUNCIONES DE CITAS ===
+// === ACTUALIZAR CALENDARIO CON /api/citas-calendario ===
+// === ACTUALIZAR CALENDARIO CON /api/citas-calendario ===
+// === ACTUALIZAR CALENDARIO CON /api/citas-calendario (CORREGIDO) ===
             async function actualizarCalendario() {
                 if (!calendar) return;
+
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.warn('No hay token. Redirigiendo al login...');
+                    alert('Sesión expirada. Por favor inicia sesión nuevamente.');
+                    window.location.href = 'index.html';
+                    return;
+                }
+
                 try {
-                    const res = await fetch('/api/mis-citas', { headers: { 'Authorization': `Bearer ${token}` } });
-                    if (!res.ok) return;
-                    const citas = await res.json();
-                    calendar.removeAllEvents();
-                    const events = citas.map(c => {
-                        const esp = f(c, 'especialidad', 'Nombre_Especialidad', 'Nombre_Esp');
-                        const nombre = f(c, 'nombre_completo', 'Nombre_Completo') || `${f(c, 'Nombre_Doctor') || ''}`;
-                        const fecha = f(c, 'fecha', 'Fecha');
-                        const hora = f(c, 'hora', 'Hora');
-                        const tipo = f(c, 'tipo_cita', 'Tipo_Cita') || '';
-                        return {
-                            title: `${esp || 'Cita'} - ${nombre}`,
-                            start: `${fecha}T${hora}`,
-                            backgroundColor: tipo.toLowerCase() === 'urgencia' ? '#ef4444' : '#3b82f6'
-                        };
+                    // Usar el endpoint real `/api/mis-citas` (el servidor expone esta ruta)
+                    console.log('Enviando solicitud a /api/mis-citas con token...');
+                    const res = await fetch('/api/mis-citas', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,  // ← ¡¡ESPACIO DESPUÉS DE Bearer!!
+                            'Content-Type': 'application/json'
+                        }
                     });
-                    calendar.addEventSource(events);
-                } catch (err) { console.error('Error actualizarCalendario', err); }
+
+                    // === MANEJO DE ERRORES DE AUTENTICACIÓN ===
+                    if (res.status === 403) {
+                        console.error('403 Forbidden: Token inválido o expirado');
+                        alert('Acceso denegado. Tu sesión ha expirado.');
+                        localStorage.removeItem('token');
+                        window.location.href = 'index.html';
+                        return;
+                    }
+
+                    if (res.status === 401) {
+                        alert('No autorizado. Inicia sesión nuevamente.');
+                        window.location.href = 'index.html';
+                        return;
+                    }
+
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        throw new Error(`Error HTTP ${res.status}: ${errorText}`);
+                    }
+
+                    let eventos = await res.json();
+                    console.log('Citas recibidas del servidor (raw):', eventos);
+
+                    // Algunas rutas devuelven { value: [...], Count } o un array directamente.
+                    let eventosArray = [];
+                    if (Array.isArray(eventos)) eventosArray = eventos;
+                    else if (eventos && Array.isArray(eventos.value)) eventosArray = eventos.value;
+
+                    // Si no hay citas, intentar cargar datos de debug para pruebas locales
+                    if (!Array.isArray(eventosArray) || eventosArray.length === 0) {
+                        try {
+                            console.debug('No hay citas reales; solicitando /api/mis-citas?debug=1 como fallback');
+                            const dbgRes = await fetch('/api/mis-citas?debug=1', { headers: { 'Authorization': `Bearer ${token}` } });
+                            if (dbgRes.ok) {
+                                const dbgJson = await dbgRes.json();
+                                if (Array.isArray(dbgJson)) eventosArray = dbgJson;
+                                else if (dbgJson && Array.isArray(dbgJson.value)) eventosArray = dbgJson.value;
+                            }
+                        } catch (e) { console.debug('Fallback debug request falló:', e); }
+                    }
+
+                    console.log('Eventos normalizados a procesar:', eventosArray);
+
+                    // Limpiar eventos anteriores
+                    calendar.removeAllEvents();
+
+                    if (!Array.isArray(eventosArray) || eventosArray.length === 0) {
+                        // Mostrar mensaje amigable si no hay citas
+                        calendar.addEventSource([{
+                            title: 'No tienes citas agendadas',
+                            start: new Date().toISOString().split('T')[0],
+                            allDay: true,
+                            display: 'background',
+                            backgroundColor: '#f3f4f6',
+                            textColor: '#6b7280',
+                            classNames: ['text-sm', 'font-medium']
+                        }]);
+                        return;
+                    }
+
+                    // Mapear cada registro del servidor a un evento válido de FullCalendar
+                    const mapped = eventosArray.map(ev => {
+                        // Helpers para leer campos con mayúsculas/minúsculas variantes
+                        const fechaRaw = (ev.Fecha || ev.fecha || ev.Fecha_Cita || ev.fecha_cita) || ev.Fecha || ev.fecha || '';
+                        const horaRaw = (ev.hora || ev.Hora || ev.Hora_Cita) || '';
+                        const fechaStr = fechaRaw && typeof fechaRaw === 'string' ? fechaRaw.trim() : '';
+                        // Normalizar hora a HH:MM:SS si viene como HH:MM
+                        let hora = horaRaw && typeof horaRaw === 'string' ? horaRaw.trim() : '';
+                        if (hora && /^\d{1,2}:\d{2}$/.test(hora)) hora = hora + ':00';
+
+                        // Construir start; si no hay hora, usar allDay
+                        let start = null;
+                        let allDay = false;
+                        if (fechaStr) {
+                            // Si la fecha viene como ISO completo (contiene 'T'), extraer la parte fecha
+                            const dateOnly = fechaStr.includes('T') ? fechaStr.split('T')[0] : fechaStr;
+                            if (hora) {
+                                // Construir 'YYYY-MM-DDTHH:MM:SS'
+                                start = `${dateOnly}T${hora}`;
+                            } else {
+                                // Si la fecha original incluía hora (ISO) y no tenemos hora por separado, usarla completa
+                                start = fechaStr.includes('T') ? fechaStr : dateOnly;
+                                allDay = !fechaStr.includes('T');
+                            }
+                        }
+
+                        const paciente = ev.nombre_completo || ev.Nombre_Completo || ev.Nombre_Paciente || ev.nombre || '';
+                        const especialidad = ev.especialidad || ev.Nombre_Especialidad || ev.Especialidad || '';
+                        const title = especialidad ? `${especialidad} — ${paciente || 'Cita'}` : (paciente || 'Cita');
+
+                        // Sólo incluir si start es válido
+                        const eventObj = {
+                            id: ev.Id_cita || ev.id_cita || ev.id || undefined,
+                            title,
+                            start,
+                            allDay,
+                            extendedProps: { raw: ev }
+                        };
+                        return eventObj;
+                    }).filter(e => e.start);
+
+                    if (mapped.length === 0) {
+                        // Si por alguna razón no hay eventos válidos después del mapeo
+                        calendar.addEventSource([{
+                            title: 'No hay citas válidas para mostrar',
+                            start: new Date().toISOString().split('T')[0],
+                            allDay: true,
+                            display: 'background',
+                            backgroundColor: '#fff4e6',
+                            textColor: '#92400e'
+                        }]);
+                        return;
+                    }
+
+                    // Agregar al calendario
+                    calendar.addEventSource(mapped);
+
+                } catch (err) {
+                    console.error('Error crítico en actualizarCalendario:', err);
+                    alert('Error al cargar el calendario. Revisa la consola.');
+                }
             }
 
             async function cargarCitas() {

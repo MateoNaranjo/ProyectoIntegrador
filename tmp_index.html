@@ -441,18 +441,33 @@
                     if (!res.ok) return;
                     const citas = await res.json();
                     calendar.removeAllEvents();
-                    const events = citas.map(c => {
-                        const esp = f(c, 'especialidad', 'Nombre_Especialidad', 'Nombre_Esp');
-                        const nombre = f(c, 'nombre_completo', 'Nombre_Completo') || `${f(c, 'Nombre_Doctor') || ''}`;
-                        const fecha = f(c, 'fecha', 'Fecha');
-                        const hora = f(c, 'hora', 'Hora');
-                        const tipo = f(c, 'tipo_cita', 'Tipo_Cita') || '';
-                        return {
-                            title: `${esp || 'Cita'} - ${nombre}`,
-                            start: `${fecha}T${hora}`,
-                            backgroundColor: tipo.toLowerCase() === 'urgencia' ? '#ef4444' : '#3b82f6'
-                        };
-                    });
+                        // Log para depuración: mostrar lo que viene del backend
+                        console.debug('Citas recibidas para calendario:', citas);
+                        const events = citas.map(c => {
+                            const esp = f(c, 'especialidad', 'Nombre_Especialidad', 'Nombre_Esp');
+                            const nombre = f(c, 'nombre_completo', 'Nombre_Completo') || `${f(c, 'Nombre_Doctor') || ''}`;
+                            const fecha = f(c, 'fecha', 'Fecha');
+                            const hora = f(c, 'hora', 'Hora');
+                            const tipo = f(c, 'tipo_cita', 'Tipo_Cita') || '';
+                            // Normalizar start: si falta hora, usar fecha sola; si falta fecha intentar con campo raw.Fecha
+                            let start = null;
+                            if (fecha) {
+                                if (hora) {
+                                    // Asegurar que hora tiene formato HH:MM[:SS]
+                                    const horaNorm = hora.length === 5 ? `${hora}:00` : hora;
+                                    start = `${fecha}T${horaNorm}`;
+                                } else {
+                                    start = fecha;
+                                }
+                            } else if (c && c.raw && c.raw.Fecha) {
+                                start = c.raw.Fecha;
+                            }
+                            return {
+                                title: `${esp || 'Cita'} - ${nombre}`,
+                                start,
+                                backgroundColor: (tipo && tipo.toLowerCase() === 'urgencia') ? '#ef4444' : '#3b82f6'
+                            };
+                        });
                     calendar.addEventSource(events);
                 } catch (err) { console.error('Error actualizarCalendario', err); }
             }

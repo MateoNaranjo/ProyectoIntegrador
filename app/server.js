@@ -70,7 +70,25 @@ app.get('/api/mis-citas', auth, (req, res) => {
         WHERE c.id_usuario = ?
         ORDER BY c.Fecha DESC, c.hora DESC
     `, [req.user.id], (err, results) => {
-        res.json(err ? [] : results);
+        if (err) return res.json([]);
+        // Normalizar nombres de campos para que el frontend no dependa de mayúsculas o alias
+        const normalized = results.map(r => ({
+            Id_cita: r.Id_cita || r.id_cita || r.id || null,
+            id_usuario: r.id_usuario || r.Id_usuario || r.user_id || req.user.id,
+            id_especialidad: r.id_especialidad || r.Id_especialidad || null,
+            Nombre_Especialidad: r.Nombre_Especialidad || r.nombre_especialidad || r.Especialidad || null,
+            Tipo_Cita: r.Tipo_Cita || r.tipo_cita || r.tipo || null,
+            Fecha: r.Fecha || r.fecha || null,
+            hora: r.hora || r.Hora || r.hora_cita || null,
+            nombre_completo: r.nombre_completo || r.Nombre_Completo || r.nombre || null,
+            documento_identidad: r.documento_identidad || r.Documento_Identidad || r.documento || null,
+            telefono: r.telefono || r.Telefono || null,
+            correo: r.correo || r.Correo || null,
+            motivo: r.motivo || r.Motivo || null,
+            // incluir cualquier campo adicional que pueda ser útil
+            raw: r
+        }));
+        res.json(normalized);
     });
 });
 
