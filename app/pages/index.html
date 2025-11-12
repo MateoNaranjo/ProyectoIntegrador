@@ -12,11 +12,11 @@
 
     <div class="container">
 
+        <!-- LOGIN -->
         <div class="container-form">
             <form class="sign-in" id="loginForm">
                 <h2>Iniciar Sesión</h2>
                 <div class="social-networks">
-                    
                     <ion-icon name="logo-twitter"></ion-icon>
                     <ion-icon name="logo-instagram"></ion-icon>
                     <ion-icon name="logo-tiktok"></ion-icon>
@@ -24,63 +24,88 @@
                 <span>Use su correo y contraseña</span>
                 <div class="container-input">
                     <ion-icon name="mail-outline"></ion-icon>
-                    <input type="text" placeholder="Email" id="loginCorreo">
+                    <input type="email" placeholder="Email" id="loginCorreo" required>
                 </div>
                 <div class="container-input">
                     <ion-icon name="lock-closed-outline"></ion-icon>
-                    <input type="password" placeholder="Password" id="loginContraseña">
-                  
+                    <input type="password" placeholder="Password" id="loginContraseña" required>
                 </div>
                 <a href="#">¿Olvidaste tu contraseña?</a>
                 <button class="button" type="submit">INICIAR SESIÓN</button>
             </form> 
         </div>
 
+        <!-- REGISTRO -->
         <div class="container-form">
             <form class="sign-up" id="registroForm">
                 <h2>Registrarse</h2>
                 <div class="social-networks">
-                    
                     <ion-icon name="logo-twitter"></ion-icon>
                     <ion-icon name="logo-instagram"></ion-icon>
                     <ion-icon name="logo-tiktok"></ion-icon>
                 </div>
                 <span>Use su correo electrónico para registrarse</span>
+
+                <!-- CAMPOS NUEVOS -->
+                <div class="container-input">
+                    <ion-icon name="card-outline"></ion-icon>
+                    <input type="text" placeholder="Número de documento" id="documento" required>
+                </div>
                 <div class="container-input">
                     <ion-icon name="person-outline"></ion-icon>
-                    <input type="text" placeholder="Nombre" id="nombre">
+                    <input type="text" placeholder="Nombre" id="nombre" required>
+                </div>
+                <div class="container-input">
+                    <ion-icon name="person-outline"></ion-icon>
+                    <input type="text" placeholder="Apellido" id="apellido" required>
                 </div>
                 <div class="container-input">
                     <ion-icon name="mail-outline"></ion-icon>
-                    <input type="email" placeholder="Email" id="correo">
+                    <input type="email" placeholder="Email" id="correo" required>
                 </div>
                 <div class="container-input">
                     <ion-icon name="lock-closed-outline"></ion-icon>
-                    <input type="password" placeholder="Password" id="contraseña">
+                    <input type="password" placeholder="Password" id="contraseña" required>
                 </div>
+
+                <!-- CAMPOS DOCTOR (condicional) -->
+                <div id="camposDoctor" style="display: none;">
+                    <div class="container-input">
+                        <ion-icon name="medkit-outline"></ion-icon>
+                        <select id="especialidad">
+                            <option value="">Especialidad</option>
+                            <option value="1">Cardiología</option>
+                            <option value="2">Pediatría</option>
+                            <option value="3">General</option>
+                        </select>
+                    </div>
+                    <div class="container-input">
+                        <ion-icon name="business-outline"></ion-icon>
+                        <input type="text" placeholder="NIT EPS" id="nit_eps">
+                    </div>
+                </div>
+
                 <button class="button">REGISTRARSE</button>
             </form> 
         </div>
 
+        <!-- BIENVENIDA -->
         <div class="container-welcome">
-            <div class="welcome-sign-up welcome">
+            <div class="welcome welcome-sign-up">
                 <h3>¡Bienvenido!</h3>
-                <p>Ingrese sus datos personales para usar todas la funciones del sitio</p>
+                <p>Ingrese sus datos personales para usar todas las funciones del sitio</p>
                 <button class="button" id="btn-sign-up">Registrarse</button>
             </div>
-            <div class="welcome-sign-in welcome">
+            <div class="welcome welcome-sign-in">
                 <h3>¡Hola!</h3>
-                <p>Registrese con sus datos personales para usar todas la funciones del sitio</p>
-                <button class="button" id="btn-sign-in">Iniciar Sesion</button>
+                <p>Regístrese con sus datos personales para usar todas las funciones del sitio</p>
+                <button class="button" id="btn-sign-in">Iniciar Sesión</button>
             </div>
         </div>
 
     </div>
 
-    
-
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-
 </body>
 </html>

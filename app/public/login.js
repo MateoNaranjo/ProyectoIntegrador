@@ -1,57 +1,116 @@
-// Registro usuario
-async function registrarUsuario(event) {
-  event.preventDefault();
+// public/login.js
 
+// Mostrar campos según correo
+document.getElementById("correo").addEventListener("input", function () {
+  const correo = this.value.trim().toLowerCase();
+  const camposDoctor = document.getElementById("camposDoctor");
+  const camposPaciente = document.getElementById("camposPaciente");
+
+  if (correo.includes("@arcdata.com")) {
+    camposDoctor.style.display = "block";
+    camposPaciente.style.display = "none";
+    ["especialidad", "nit_eps_doctor", "direccion_doctor", "fecha_nacimiento_doctor"].forEach(id => {
+      document.getElementById(id).required = true;
+    });
+    ["direccion", "fecha_nacimiento", "nit_eps_paciente"].forEach(id => {
+      document.getElementById(id).required = false;
+    });
+  } else {
+    camposDoctor.style.display = "none";
+    camposPaciente.style.display = "block";
+    ["direccion", "fecha_nacimiento", "nit_eps_paciente"].forEach(id => {
+      document.getElementById(id).required = true;
+    });
+    ["especialidad", "nit_eps_doctor", "direccion_doctor", "fecha_nacimiento_doctor"].forEach(id => {
+      document.getElementById(id).required = false;
+    });
+  }
+});
+
+// REGISTRO
+document.getElementById("registroForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const documento = document.getElementById("documento").value.trim();
   const nombre = document.getElementById("nombre").value.trim();
-  const email = document.getElementById("correo").value.trim();
-  const password = document.getElementById("contraseña").value.trim();
+  const apellido = document.getElementById("apellido").value.trim();
+  const correo = document.getElementById("correo").value.trim().toLowerCase();
+  const contraseña = document.getElementById("contraseña").value.trim();
 
-  // Validación de campos vacíos
-  if (!nombre || !email || !password) {
-    alert("Por favor, completa todos los campos: nombre, correo y contraseña.");
+  if (!documento || !nombre || !apellido || !correo || !contraseña) {
+    alert("Completa los campos básicos");
     return;
   }
 
-  const response = await fetch("/registro", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nombre, email, password }),
-  });
+  const data = { documento, nombre, apellido, correo, contraseña };
 
-  const data = await response.json();
-  alert(data.message || data.error);
-}
+  if (correo.includes("@arcdata.com")) {
+    const especialidad = document.getElementById("especialidad").value;
+    const nit_eps = document.getElementById("nit_eps_doctor").value.trim();
+    const direccion = document.getElementById("direccion_doctor").value.trim();
+    const fecha_nacimiento = document.getElementById("fecha_nacimiento_doctor").value;
 
-// Login usuario
-async function iniciarSesion(event) {
-  event.preventDefault();
+    if (!especialidad || !nit_eps || !direccion || !fecha_nacimiento) {
+      alert("Completa todos los campos del doctor");
+      return;
+    }
 
-  const email = document.getElementById("loginCorreo").value.trim();
-  const password = document.getElementById("loginContraseña").value.trim();
+    data.especialidad = especialidad;
+    data.nit_eps = nit_eps;
+    data.direccion = direccion;
+    data.fecha_nacimiento = fecha_nacimiento;
+    data.tipo = "doctor";
+  } else {
+    const direccion = document.getElementById("direccion").value.trim();
+    const fecha_nacimiento = document.getElementById("fecha_nacimiento").value;
+    const nit_eps = document.getElementById("nit_eps_paciente").value.trim();
 
-  // Validación de campos vacíos
-  if (!email || !password) {
-    alert("Por favor, ingresa tu correo y contraseña.");
-    return;
+    if (!direccion || !fecha_nacimiento || !nit_eps) {
+      alert("Completa todos los campos del paciente");
+      return;
+    }
+
+    data.direccion = direccion;
+    data.fecha_nacimiento = fecha_nacimiento;
+    data.nit_eps = nit_eps;
+    data.tipo = "paciente"; // ← AQUÍ ESTÁ
   }
 
-  const response = await fetch("/login", {
+  console.log("Enviando al backend:", data); // ← DEPURACIÓN
+
+  const res = await fetch("/registro", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(data),
   });
 
-  const data = await response.json();
+  const result = await res.json();
+  alert(result.message || result.error);
+});
+
+// LOGIN
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const correo = document.getElementById("loginCorreo").value.trim().toLowerCase();
+  const contraseña = document.getElementById("loginContraseña").value.trim();
+
+  const res = await fetch("/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ correo, contraseña }),
+  });
+
+  const data = await res.json();
 
   if (data.token) {
     localStorage.setItem("token", data.token);
+    localStorage.setItem("userId", data.user.id);
+    localStorage.setItem("userType", data.user.tipo);
+    localStorage.setItem("userName", data.user.nombre);
     alert("Bienvenido, " + data.user.nombre);
-    window.location.href = "index-incial.html"; // Página protegida
+    window.location.href = "index-inicial.html";
   } else {
     alert("Error: " + data.error);
   }
-}
-
-// Eventos para los formularios
-document.getElementById("registroForm").addEventListener("submit", registrarUsuario);
-document.getElementById("loginForm").addEventListener("submit", iniciarSesion);
+});

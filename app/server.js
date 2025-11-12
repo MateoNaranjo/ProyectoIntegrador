@@ -1,0 +1,142 @@
+// app/server.js
+const express = require('express');
+const mysql = require('mysql2');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(__dirname)); // Sirve todo desde app/
+
+// === CONEXIÓN A TU BASE DE DATOS EXISTENTE ===
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',           // Cambia si usas otro
+    password: '',           // Cambia si tienes contraseña
+    database: 'citas_medicas' // ← NOMBRE EXACTO DE TU BD
+});
+
+db.connect(err => {
+    if (err) {
+        console.error('Error conectando a MySQL:', err);
+        process.exit(1);
+    }
+    console.log('MySQL conectado a la base de datos: citas_medicas');
+});
+
+const JWT_SECRET = 'citas123';
+
+// === LOGIN ===
+app.post('/api/login', (req, res) => {
+    const { email, password } = req.body;
+    db.query(
+        'SELECT * FROM usuarios WHERE email = ? AND password = ?',
+        [email, password],
+        (err, results) => {
+            if (err || !results.length) {
+                return res.json({ error: 'Credenciales inválidas' });
+            }
+            const user = results[0];
+            const token = jwt.sign(
+                { id: user.id, nombre: user.nombre },
+                JWT_SECRET,
+                { expiresIn: '1h' }
+            );
+            res.json({ token, nombre: user.nombre });
+        }
+    );
+});
+
+// === MIDDLEWARE AUTH ===
+const auth = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No autorizado' });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Token inválido' });
+        req.user = user;
+        next();
+    });
+};
+
+// === MIS CITAS ===
+app.get('/api/mis-citas', auth, (req, res) => {
+    db.query(`
+        SELECT c.*, e.Nombre_Especialidad 
+        FROM citas c 
+        JOIN especialidades e ON c.id_especialidad = e.Id_especialidad 
+        WHERE c.id_usuario = ?
+        ORDER BY c.Fecha DESC, c.hora DESC
+    `, [req.user.id], (err, results) => {
+        res.json(err ? [] : results);
+    });
+});
+
+// === ESPECIALIDADES ===
+app.get('/api/especialidades', (req, res) => {
+    db.query('SELECT Nombre_Especialidad FROM especialidades', (err, results) => {
+        res.json(err ? [] : results.map(r => r.Nombre_Especialidad));
+    });
+});
+
+// === AGENDAR CITA ===
+app.post('/api/agendar-cita', auth, (req, res) => {
+    const {
+        tipoCita, especialidad, fecha, hora,
+        nombreCompleto, documentoIdentidad, telefono, correo, motivo
+    } = req.body;
+
+    // Buscar ID de especialidad
+    db.query(
+        'SELECT Id_especialidad FROM especialidades WHERE Nombre_Especialidad = ?',
+        [especialidad],
+        (err, results) => {
+            if (err || !results.length) {
+                return res.json({ error: 'Especialidad no encontrada' });
+            }
+
+            const id_especialidad = results[0].Id_especialidad;
+
+            db.query(
+                `INSERT INTO citas 
+                (id_usuario, id_especialidad, Tipo_Cita, Fecha, hora, nombre_completo, documento_identidad, telefono, correo, motivo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    req.user.id, id_especialidad, tipoCita, fecha, hora,
+                    nombreCompleto, documentoIdentidad, telefono, correo, motivo
+                ],
+                (err, result) => {
+                    if (err) {
+                        console.error('Error al insertar cita:', err);
+                        return res.json({ error: 'Error al agendar cita' });
+                    }
+                    res.json({ success: true, id_cita: result.insertId });
+                }
+            );
+        }
+    );
+});
+
+// === ELIMINAR CITA ===
+app.delete('/api/cita/:id', auth, (req, res) => {
+    const citaId = req.params.id;
+    db.query(
+        'DELETE FROM citas WHERE Id_cita = ? AND id_usuario = ?',
+        [citaId, req.user.id],
+        (err, result) => {
+            if (err || result.affectedRows === 0) {
+                return res.json({ error: 'No se pudo eliminar la cita' });
+            }
+            res.json({ success: true });
+        }
+    );
+});
+
+// === INICIAR SERVIDOR ===
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en: http://localhost:${PORT}`);
+    console.log(`Login: http://localhost:${PORT}/index.html`);
+});
