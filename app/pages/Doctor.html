@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Médico - Citas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            primary: '#1d4ed8',
+            'primary-light': '#3b82f6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            gray: { 100: '#f3f4f6', 200: '#e5e7eb', 500: '#6b7280', 700: '#374151', 900: '#1f2937' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .fc .fc-button-primary { @apply bg-primary text-white border-0 hover:bg-blue-700; }
+    .fc .fc-button-primary:not(:disabled):active { @apply bg-blue-800; }
+    .fc-event { @apply text-xs font-semibold rounded-md border-0 shadow-sm; }
+    .glass { @apply bg-white/90 backdrop-blur-md border border-white/20 shadow-lg; }
+    .card { @apply bg-white rounded-2xl shadow-lg border border-gray-100 transition-all hover:shadow-xl; }
+    .badge { @apply px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1; }
+    .badge-pendiente { @apply bg-amber-100 text-amber-800; }
+    .badge-confirmada { @apply bg-emerald-100 text-emerald-800; }
+    .badge-cancelada { @apply bg-red-100 text-red-800; }
+    .stat-card { @apply card p-5 text-center transition-transform hover:scale-105; }
+    .cita-card { @apply glass rounded-xl p-4 border border-gray-100 hover:border-primary/30 transition-all cursor-pointer; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+
+  <!-- Header Premium -->
+  <header class="glass sticky top-0 z-50 border-b border-white/30 backdrop-blur-xl">
+    <div class="container mx-auto px-5 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <img src="https://arcangeles.org/storage/2024/09/logo-Arcangeles.png" alt="Logo" class="h-12 w-12 rounded-xl shadow-md object-contain">
+          <div>
+            <h1 id="doctorTitle" class="text-xl font-bold text-gray-800">Panel del Médico</h1>
+            <p id="doctorSubtitle" class="text-xs text-gray-600">Cargando información...</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="profileBtn" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-all">
+            <i class="ti ti-user text-lg"></i>
+            <span id="doctorNameShort" class="hidden sm:inline">Perfil</span>
+          </button>
+          <button onclick="logout()" class="flex items-center gap-2 px-4 py-2 bg-danger text-white rounded-xl font-medium text-sm hover:bg-red-700 transition-all">
+            <i class="ti ti-logout"></i>
+            <span class="hidden sm:inline">Salir</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container mx-auto px-5 py-8 max-w-7xl">
+
+    <!-- Estadísticas Rápidas -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
+      <div class="stat-card">
+        <div class="flex items-center justify-center mb-2">
+          <i class="ti ti-calendar-check text-2xl text-primary"></i>
+        </div>
+        <div id="stat-today" class="text-3xl font-bold text-primary">0</div>
+        <p class="text-xs text-gray-600 mt-1">Citas Hoy</p>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-center mb-2">
+          <i class="ti ti-checks text-2xl text-success"></i>
+        </div>
+        <div id="stat-confirmed" class="text-3xl font-bold text-success">0</div>
+        <p class="text-xs text-gray-600 mt-1">Confirmadas</p>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-center mb-2">
+          <i class="ti ti-clock-hour-3 text-2xl text-warning"></i>
+        </div>
+        <div id="stat-pending" class="text-3xl font-bold text-warning">0</div>
+        <p class="text-xs text-gray-600 mt-1">Pendientes</p>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-center mb-2">
+          <i class="ti ti-xbox-x text-2xl text-danger"></i>
+        </div>
+        <div id="stat-cancelled" class="text-3xl font-bold text-danger">0</div>
+        <p class="text-xs text-gray-600 mt-1">Canceladas</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-7">
+
+      <!-- Calendario Grande -->
+      <div class="lg:col-span-8">
+        <div class="card overflow-hidden">
+          <div class="p-5 border-b border-gray-100 bg-gradient-to-r from-primary/5 to-primary/10">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <i class="ti ti-calendar-event text-primary"></i>
+              Calendario de Citas
+            </h2>
+          </div>
+          <div class="p-5">
+            <div id="calendar" class="bg-white rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel Lateral -->
+      <div class="lg:col-span-4 space-y-6">
+
+        <!-- Citas de Hoy -->
+        <div class="card">
+          <div class="p-5 border-b border-gray-100">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                <i class="ti ti-clock text-primary"></i>
+                Citas de Hoy
+              </h3>
+              <span id="today-date" class="text-xs font-medium text-gray-500"></span>
+            </div>
+          </div>
+          <div id="citas-hoy" class="p-5 space-y-3 max-h-96 overflow-y-auto">
+            <p class="text-center text-gray-400 py-8 text-sm">Cargando citas...</p>
+          </div>
+        </div>
+
+        <!-- Acciones Rápidas -->
+        <div class="card p-5">
+          <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <i class="ti ti-bolt text-gray-600"></i>
+            Acciones Rápidas
+          </h3>
+          <div class="grid grid-cols-1 gap-3">
+            <button onclick="exportarPDF()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition-all">
+              <i class="ti ti-file-download"></i>
+              Exportar PDF
+            </button>
+            <button onclick="window.print()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-success text-white rounded-xl font-medium text-sm hover:bg-green-700 transition-all">
+              <i class="ti ti-printer"></i>
+              Imprimir Día
+            </button>
+            <button onclick="verHistorial()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-warning text-white rounded-xl font-medium text-sm hover:bg-amber-600 transition-all">
+              <i class="ti ti-history"></i>
+              Ver Historial
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtro por Especialidad -->
+        <div class="card p-5">
+          <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <i class="ti ti-filter text-gray-600"></i>
+            Filtrar por
+          </h3>
+          <select id="filtro-especialidad" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-sm">
+            <option value="">Todas las especialidades</option>
+            <option>Cardiología</option>
+            <option>Pediatría</option>
+            <option>Traumatología</option>
+            <option>Neurología</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+  <script>
+    // === DATOS DE CITAS ===
+    const citas = [
+      { id: 1, title: 'María González', start: '2025-11-12T10:00:00', especialidad: 'Cardiología', medico: 'Dr. Pérez', tipo: 'Primera Vez', estado: 'pendiente', telefono: '+123456789', motivo: 'Dolor torácico', color: '#3b82f6' },
+      { id: 2, title: 'Juan Pérez', start: '2025-11-12T14:30:00', especialidad: 'Pediatría', medico: 'Dra. López', tipo: 'Control', estado: 'confirmada', telefono: '+987654321', motivo: 'Vacunas', color: '#10b981' },
+      { id: 3, title: 'Ana Ruiz', start: '2025-11-12T09:00:00', especialidad: 'Traumatología', medico: 'Dr. Gómez', tipo: 'Urgencia', estado: 'pendiente', telefono: '+112233445', motivo: 'Esguince tobillo', color: '#ef4444' },
+      { id: 4, title: 'Luis Mendoza', start: '2025-11-13T11:00:00', especialidad: 'Cardiología', medico: 'Dr. Pérez', tipo: 'Control', estado: 'pendiente', telefono: '+556677889', motivo: 'Hipertensión', color: '#8b5cf6' }
+    ];
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const token = localStorage.getItem('token');
+      const userType = localStorage.getItem('userType');
+      const userId = localStorage.getItem('userId');
+      const userName = localStorage.getItem('userName');
+
+      if (!token || userType !== 'doctor') {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      if (userName) {
+        const nombre = userName.split(' ')[0];
+        document.getElementById('doctorNameShort').textContent = nombre;
+        document.getElementById('doctorTitle').innerHTML = `Panel del Médico — <span class="text-primary">${userName}</span>`;
+      }
+
+      // Subtítulo con especialidad
+      (async () => {
+        try {
+          const res = await fetch('/api/doctores', { headers: { 'Authorization': `Bearer ${token}` } });
+          if (res.ok) {
+            const docs = await res.json();
+            const me = docs.find(d => String(d.id_doctor) === String(userId));
+            if (me) {
+              document.getElementById('doctorSubtitle').textContent = `${me.Nombre_Especialidad || 'Médico General'}`;
+            }
+          }
+        } catch (e) {
+          document.getElementById('doctorSubtitle').textContent = 'Médico';
+        }
+      })();
+
+      const hoy = new Date();
+      document.getElementById('today-date').textContent = hoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
+      // Estadísticas
+      const hoyStr = hoy.toISOString().split('T')[0];
+      const citasHoy = citas.filter(c => c.start.startsWith(hoyStr));
+      document.getElementById('stat-today').textContent = citasHoy.length;
+      document.getElementById('stat-confirmed').textContent = citas.filter(c => c.estado === 'confirmada').length;
+      document.getElementById('stat-pending').textContent = citas.filter(c => c.estado === 'pendiente').length;
+      document.getElementById('stat-cancelled').textContent = citas.filter(c => c.estado === 'cancelada').length;
+
+      // Calendario
+      const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+        buttonText: { today: 'Hoy', month: 'Mes', week: 'Semana' },
+        events: citas.map(c => ({ ...c, backgroundColor: c.color, borderColor: c.color })),
+        eventClick: info => mostrarDetalle(info.event)
+      });
+      calendar.render();
+
+      // Citas de hoy
+      actualizarCitasHoy();
+
+      // Filtro por especialidad
+      document.getElementById('filtro-especialidad').addEventListener('change', actualizarCitasHoy);
+    });
+
+    function actualizarCitasHoy() {
+      const hoy = new Date().toISOString().split('T')[0];
+      const filtro = document.getElementById('filtro-especialidad').value;
+      let citasFiltradas = citas.filter(c => c.start.startsWith(hoy));
+      if (filtro) citasFiltradas = citasFiltradas.filter(c => c.especialidad === filtro);
+      citasFiltradas.sort((a, b) => a.start.localeCompare(b.start));
+
+      const cont = document.getElementById('citas-hoy');
+      cont.innerHTML = '';
+
+      if (citasFiltradas.length === 0) {
+        cont.innerHTML = `<p class="text-center text-gray-400 py-8 text-sm">No hay citas para hoy${filtro ? ` en ${filtro}` : ''}</p>`;
+        return;
+      }
+
+      citasFiltradas.forEach(cita => {
+        const div = document.createElement('div');
+        div.className = 'cita-card';
+        div.onclick = () => mostrarDetalle({ id: cita.id });
+
+        const estadoIcon = cita.estado === 'confirmada' ? 'ti ti-check' :
+                          cita.estado === 'pendiente' ? 'ti ti-clock' : 'ti ti-x';
+
+        div.innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <p class="font-bold text-gray-900 text-sm">${cita.title}</p>
+              <p class="text-xs text-gray-600">${cita.especialidad} • ${cita.start.split('T')[1].slice(0,5)}</p>
+            </div>
+            <span class="badge badge-${cita.estado}">
+              <i class="${estadoIcon} text-xs"></i>
+              <span>${cita.estado}</span>
+            </span>
+          </div>
+          <p class="text-xs text-gray-500 mb-3 line-clamp-1">${cita.motivo}</p>
+          <div class="grid grid-cols-3 gap-1 text-xs">
+            ${cita.estado === 'pendiente' ? `<button onclick="event.stopPropagation(); confirmar(${cita.id})" class="flex items-center justify-center gap-1 py-1.5 bg-success/10 text-success rounded-lg hover:bg-success/20 transition-all"><i class="ti ti-check"></i></button>` : '<div></div>'}
+            <button onclick="event.stopPropagation(); reprogramar(${cita.id})" class="flex items-center justify-center gap-1 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all"><i class="ti ti-calendar"></i></button>
+            <button onclick="event.stopPropagation(); cancelar(${cita.id})" class="flex items-center justify-center gap-1 py-1.5 bg-danger/10 text-danger rounded-lg hover:bg-danger/20 transition-all"><i class="ti ti-x"></i></button>
+          </div>
+        `;
+        cont.appendChild(div);
+      });
+    }
+
+    function confirmar(id) { const c = citas.find(x => x.id === id); c.estado = 'confirmada'; actualizarCitasHoy(); alert(`Cita de ${c.title} confirmada`); }
+    function reprogramar(id) { const nueva = prompt("Nueva fecha y hora (YYYY-MM-DD HH:MM):"); if (nueva) { const c = citas.find(x => x.id === id); c.start = nueva.replace(' ', 'T') + ':00'; actualizarCitasHoy(); alert(`Reprogramada para: ${nueva}`); } }
+    function cancelar(id) { if (confirm("¿Cancelar esta cita?")) { const c = citas.find(x => x.id === id); c.estado = 'cancelada'; actualizarCitasHoy(); } }
+
+    function mostrarDetalle(event) {
+      const c = citas.find(x => x.id == event.id);
+      alert(`
+        PACIENTE: ${c.title}
+        ESPECIALIDAD: ${c.especialidad}
+        MÉDICO: ${c.medico}
+        TIPO: ${c.tipo}
+        MOTIVO: ${c.motivo}
+        TELÉFONO: ${c.telefono}
+        ESTADO: ${c.estado.toUpperCase()}
+      `.trim());
+    }
+
+    function exportarPDF() { alert("Exportando PDF... (próximamente con jsPDF)"); }
+    function verHistorial() { alert("Historial completo... (próximamente)"); }
+
+    function logout() {
+      if (confirm("¿Cerrar sesión?")) {
+        localStorage.clear();
+        window.location.href = "index.html";
+      }
+    }
+  </script>
+</body>
+</html>

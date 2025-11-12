@@ -109,8 +109,35 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     localStorage.setItem("userType", data.user.tipo);
     localStorage.setItem("userName", data.user.nombre);
     alert("Bienvenido, " + data.user.nombre);
-    window.location.href = "index-inicial.html";
+    // Redirigir según el tipo de usuario
+    if (data.user.tipo === 'doctor') {
+      window.location.href = "Doctor.html";
+    } else {
+      window.location.href = "index-inicial.html";
+    }
   } else {
     alert("Error: " + data.error);
   }
 });
+
+// Poblar selects de EPS al cargar la página
+async function poblarEps() {
+  try {
+    const res = await fetch('/api/eps');
+    if (!res.ok) return;
+    const eps = await res.json();
+    const selDoctor = document.getElementById('nit_eps_doctor');
+    const selPaciente = document.getElementById('nit_eps_paciente');
+    if (!selDoctor || !selPaciente) return;
+    eps.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id; // usamos Id_Eps como value
+      opt.textContent = e.nombre;
+      selDoctor.appendChild(opt.cloneNode(true));
+      selPaciente.appendChild(opt.cloneNode(true));
+    });
+  } catch (e) { console.debug('No se pudieron cargar EPS:', e); }
+}
+
+// Ejecutar al cargar el script
+document.addEventListener('DOMContentLoaded', poblarEps);

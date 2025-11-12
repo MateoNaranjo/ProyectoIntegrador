@@ -74,14 +74,43 @@
                         <ion-icon name="medkit-outline"></ion-icon>
                         <select id="especialidad">
                             <option value="">Especialidad</option>
-                            <option value="1">Cardiología</option>
-                            <option value="2">Pediatría</option>
-                            <option value="3">General</option>
+                            <option value="1">Medicina General</option>
+                            <option value="2">Cardiología</option>
+                            <option value="3">Pediatría</option>
+                            <option value="4">Dermatología</option>
                         </select>
                     </div>
                     <div class="container-input">
                         <ion-icon name="business-outline"></ion-icon>
-                        <input type="text" placeholder="NIT EPS" id="nit_eps">
+                        <select id="nit_eps_doctor">
+                            <option value="">Seleccione EPS</option>
+                        </select>
+                    </div>
+                    <div class="container-input">
+                        <ion-icon name="home-2"></ion-icon>
+                        <input type="text" placeholder="Dirección (Doctor)" id="direccion_doctor">
+                    </div>
+                    <div class="container-input">
+                        <ion-icon name="calendar"></ion-icon>
+                        <input type="date" id="fecha_nacimiento_doctor">
+                    </div>
+                </div>
+
+                <!-- CAMPOS PACIENTE (condicional) -->
+                <div id="camposPaciente" style="display: block;">
+                    <div class="container-input">
+                        <ion-icon name="home-2"></ion-icon>
+                        <input type="text" placeholder="Dirección" id="direccion">
+                    </div>
+                    <div class="container-input">
+                        <ion-icon name="calendar"></ion-icon>
+                        <input type="date" id="fecha_nacimiento">
+                    </div>
+                    <div class="container-input">
+                        <ion-icon name="business-outline"></ion-icon>
+                        <select id="nit_eps_paciente">
+                            <option value="">Seleccione EPS</option>
+                        </select>
                     </div>
                 </div>
 
